@@ -10,14 +10,15 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Deploy to Server
-      uses: appleboy/ssh-action@master
+    - name: Deploy via Drone SSH
+      uses: appleboy/drone-ssh@v1.8.2
       with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
         script: |
-          cd ~/Tournament
+          cd ~/EFootball-Tourney
           git pull origin main
-          docker-compose down
-          docker-compose up -d --build
+          sudo docker-compose down
+          sudo docker-compose up -d --build
