@@ -10,13 +10,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Deploy via Drone SSH
-      uses: appleboy/drone-ssh@v1.8.2
+    - name: Deploy to Server
+      uses: appleboy/ssh-action@v0.1.7
       with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
-        port: 22
         script: |
           cd ~/EFootball-Tourney
           git pull origin main
