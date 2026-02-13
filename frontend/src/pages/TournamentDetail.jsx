@@ -80,7 +80,7 @@ const TournamentDetail = () => {
             <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h2>Teams ({tournament.teams.length})</h2>
-                    {tournament.teams.length >= 2 && (
+                    {tournament.teams.length >= 2 && tournament.matches.length === 0 && (
                         <button className="btn btn-primary" onClick={handleGenerateFixtures}>
                             <Play size={20} /> Generate Fixtures
                         </button>

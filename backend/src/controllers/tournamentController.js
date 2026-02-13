@@ -44,6 +44,9 @@ exports.generateFixtures = async (req, res) => {
         let fixtures = [];
 
         if (tournament.type === 'league') {
+            if (tournament.matches.length > 0) {
+                return res.status(400).json({ error: 'Fixtures already generated for this league.' });
+            }
             fixtures = generateRoundRobinFixtures(teamIds, id);
         } else {
             // Knockout
@@ -63,8 +66,11 @@ exports.generateFixtures = async (req, res) => {
                     return res.status(400).json({ error: 'Tournament already finished' });
                 }
 
-                const winners = latestMatches.map(m => m.homeScore > m.awayScore ? m.homeTeam : m.awayTeam);
-                fixtures = generateInitialKnockoutFixtures(winners, id);
+                const winners = latestMatches.map(m => {
+                    if (m.isBye) return m.homeTeam;
+                    return m.homeScore > m.awayScore ? m.homeTeam : m.awayTeam;
+                });
+                fixtures = generateInitialKnockoutFixtures(winners, id, false); // false = DON'T SHUFFLE
                 fixtures.forEach(f => f.round = latestRound + 1);
             }
         }

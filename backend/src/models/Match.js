@@ -6,6 +6,7 @@ const MatchSchema = new mongoose.Schema({
     homeScore: { type: Number, default: 0 },
     awayScore: { type: Number, default: 0 },
     played: { type: Boolean, default: false },
+    isBye: { type: Boolean, default: false },
     tournamentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tournament', required: true },
     round: { type: Number }
 });
