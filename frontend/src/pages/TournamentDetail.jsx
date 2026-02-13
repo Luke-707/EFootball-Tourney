@@ -58,7 +58,7 @@ const TournamentDetail = () => {
 
     return (
         <div>
-            <Navbar tournamentId={id} />
+            <Navbar tournamentId={id} tournamentType={tournament?.type} />
             <h1 className="title">{tournament.name}</h1>
 
             <div className="card">

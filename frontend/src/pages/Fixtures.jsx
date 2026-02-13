@@ -63,7 +63,7 @@ const Fixtures = () => {
 
     return (
         <div>
-            <Navbar tournamentId={id} />
+            <Navbar tournamentId={id} tournamentType={tournament?.type} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h1 className="title" style={{ marginBottom: 0 }}>{tournament.name}</h1>
                 <div style={{ display: 'flex', gap: '1rem' }}>
@@ -87,90 +87,86 @@ const Fixtures = () => {
             )}
 
             {tournament.type === 'knockout' ? (
-                <div className="bracket-container">
-                    {Object.keys(rounds).sort((a, b) => a - b).map(round => (
-                        <div key={round} className="bracket-round">
-                            <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--primary)', fontSize: '1.2rem' }}>
-                                {parseInt(round) === Object.keys(rounds).length ? 'Final' : `Round ${round}`}
-                            </h2>
-                            {rounds[round].map(match => (
-                                <div key={match._id} className="bracket-match-wrapper">
-                                    <div className={`bracket-match ${match.played ? 'played' : ''} ${match.isBye ? 'is-bye' : ''}`}>
-                                        {match.isBye ? (
-                                            <div className="bracket-team winner bye-team">
-                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span className="bracket-team-name">{match.homeTeam.name}</span>
-                                                    <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>Bye Round 1</span>
-                                                </div>
-                                                <span className="bracket-team-score" style={{ background: 'var(--glass)', color: 'var(--primary)', fontSize: '0.7rem' }}>ADV</span>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className={`bracket-team ${match.played && match.homeScore > match.awayScore ? 'winner' : ''}`}>
-                                                    <span className="bracket-team-name">{match.homeTeam.name}</span>
-                                                    {match.played ? (
-                                                        <span className="bracket-team-score">{match.homeScore}</span>
-                                                    ) : (
-                                                        editingMatch === match._id && (
-                                                            <input
-                                                                type="number"
-                                                                className="form-input"
-                                                                style={{ width: '40px', padding: '2px', textAlign: 'center', fontSize: '0.8rem' }}
-                                                                value={scores.homeScore}
-                                                                onChange={(e) => setScores({ ...scores, homeScore: parseInt(e.target.value) || 0 })}
-                                                            />
-                                                        )
-                                                    )}
-                                                </div>
-                                                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-                                                <div className={`bracket-team ${match.played && match.awayScore > match.homeScore ? 'winner' : ''}`}>
-                                                    <span className="bracket-team-name">{match.awayTeam.name}</span>
-                                                    {match.played ? (
-                                                        <span className="bracket-team-score">{match.awayScore}</span>
-                                                    ) : (
-                                                        editingMatch === match._id && (
-                                                            <input
-                                                                type="number"
-                                                                className="form-input"
-                                                                style={{ width: '40px', padding: '2px', textAlign: 'center', fontSize: '0.8rem' }}
-                                                                value={scores.awayScore}
-                                                                onChange={(e) => setScores({ ...scores, awayScore: parseInt(e.target.value) || 0 })}
-                                                            />
-                                                        )
-                                                    )}
-                                                </div>
+                <div>
+                    {Object.keys(rounds).sort((a, b) => b - a).map(round => {
+                        const isLatestRound = parseInt(round) === Math.max(...Object.keys(rounds).map(Number));
+                        return (
+                            <div key={round} style={{ marginBottom: '3rem' }}>
+                                <h2 style={{ marginBottom: '1.5rem', color: 'var(--primary)' }}>Round {round}</h2>
+                                <div style={{ display: 'grid', gap: '1rem' }}>
+                                    {rounds[round].filter(m => !m.isBye && m.homeTeam._id !== m.awayTeam._id).map(match => (
+                                        <div key={match._id} className="card" style={{ marginBottom: 0 }}>
+                                            <div className="fixture-card" style={{ background: 'transparent', padding: 0 }}>
+                                                <div className="fixture-team" style={{ textAlign: 'right' }}>{match.homeTeam.name}</div>
 
-                                                <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
-                                                    {!match.played && !match.isBye && editingMatch !== match._id && (
-                                                        <button className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => setEditingMatch(match._id)}>
-                                                            Set Score
+                                                {match.isBye ? (
+                                                    <div style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                                        BYE (Advanced)
+                                                    </div>
+                                                ) : (match.played && (editingMatch !== match._id)) ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                        <div className="fixture-score">
+                                                            {match.homeScore} - {match.awayScore}
+                                                        </div>
+                                                        {isLatestRound && (
+                                                            <button
+                                                                className="btn btn-secondary"
+                                                                style={{ padding: '0.3rem', borderRadius: '50%' }}
+                                                                onClick={() => {
+                                                                    setEditingMatch(match._id);
+                                                                    setScores({ homeScore: match.homeScore, awayScore: match.awayScore });
+                                                                }}
+                                                            >
+                                                                <Edit2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : editingMatch === match._id ? (
+                                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            style={{ width: '60px', textAlign: 'center' }}
+                                                            value={scores.homeScore}
+                                                            onChange={(e) => setScores({ ...scores, homeScore: parseInt(e.target.value) || 0 })}
+                                                        />
+                                                        <span>-</span>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            style={{ width: '60px', textAlign: 'center' }}
+                                                            value={scores.awayScore}
+                                                            onChange={(e) => setScores({ ...scores, awayScore: parseInt(e.target.value) || 0 })}
+                                                        />
+                                                        <button className="btn btn-primary" onClick={() => handleRecord(match._id)}>
+                                                            <Check size={16} />
                                                         </button>
-                                                    )}
-                                                    {editingMatch === match._id && !match.isBye && (
-                                                        <button className="btn btn-primary" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => handleRecord(match._id)}>
-                                                            Save
-                                                        </button>
-                                                    )}
-                                                    {match.played && !match.isBye && (
+                                                    </div>
+                                                ) : (
+                                                    isLatestRound ? (
                                                         <button
-                                                            className="btn"
-                                                            style={{ padding: '2px', background: 'transparent', color: 'var(--gray)' }}
+                                                            className="btn btn-secondary"
+                                                            style={{ padding: '0.4rem 1rem' }}
                                                             onClick={() => {
                                                                 setEditingMatch(match._id);
-                                                                setScores({ homeScore: match.homeScore, awayScore: match.awayScore });
+                                                                setScores({ homeScore: 0, awayScore: 0 });
                                                             }}
                                                         >
-                                                            <Edit2 size={12} />
+                                                            Record Result
                                                         </button>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
+                                                    ) : (
+                                                        <div style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>Match Concluded</div>
+                                                    )
+                                                )}
+
+                                                <div className="fixture-team" style={{ textAlign: 'left' }}>{match.awayTeam.name}</div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    ))}
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
                 <>

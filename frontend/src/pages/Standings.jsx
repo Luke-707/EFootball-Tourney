@@ -34,9 +34,22 @@ const Standings = () => {
         rounds[m.round].push(m);
     });
 
+    const roundsArray = Object.keys(rounds).sort((a, b) => parseInt(a) - parseInt(b));
+    const totalRounds = roundsArray.length;
+
+    const getRoundName = (roundNum) => {
+        const matchCount = rounds[roundNum]?.length || 0;
+
+        if (matchCount === 1) return 'Final';
+        if (matchCount === 2) return 'Semi-Final';
+        if (matchCount === 4) return 'Quarter Final';
+
+        return `Round ${roundNum}`;
+    };
+
     return (
         <div>
-            <Navbar tournamentId={id} />
+            <Navbar tournamentId={id} tournamentType={tournament?.type} />
             <h1 className="title">{tournament.name}</h1>
 
             {tournament.type === 'league' ? (
@@ -78,38 +91,51 @@ const Standings = () => {
                     </div>
                 </div>
             ) : (
-                <div className="card" style={{ overflowX: 'auto' }}>
-                    <h2 style={{ marginBottom: '1.5rem' }}>Knockout Brackets</h2>
+                <div className="card" style={{ padding: '0', overflowX: 'auto' }}>
+                    <h2 style={{ padding: '1.5rem', marginBottom: '0' }}>Tournament Bracket</h2>
                     <div className="bracket-container">
-                        {Object.keys(rounds).map(roundNum => (
+                        {roundsArray.map(roundNum => (
                             <div key={roundNum} className="bracket-round">
-                                <h3 style={{ textAlign: 'center', marginBottom: '1rem', color: 'var(--gray)' }}>
-                                    Round {roundNum === '1' ? '1 (Initial)' : roundNum}
+                                <h3 className="bracket-round-title">
+                                    {getRoundName(roundNum)}
                                 </h3>
-                                {rounds[roundNum].map(match => (
-                                    <div key={match._id} className="bracket-match-wrapper">
-                                        <div className="bracket-match">
-                                            {match.homeTeam._id === match.awayTeam._id ? (
-                                                <div className="bracket-team winner">
-                                                    <span className="bracket-team-name">{match.homeTeam.name}</span>
-                                                    <span className="bracket-team-score" style={{ fontSize: '0.7rem', opacity: 0.8 }}>BYE</span>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div className={`bracket-team ${match.played && match.homeScore > match.awayScore ? 'winner' : ''}`}>
-                                                        <span className="bracket-team-name">{match.homeTeam.name}</span>
-                                                        {match.played && <span className="bracket-team-score">{match.homeScore}</span>}
+                                {rounds[roundNum].map((match, matchIndex) => {
+                                    const isBye = match.isBye || match.homeTeam._id === match.awayTeam._id;
+                                    const roundIndex = roundsArray.indexOf(roundNum);
+                                    // Height doubles each round to maintain centering
+                                    const wrapperHeight = Math.pow(2, roundIndex) * 120;
+
+                                    return (
+                                        <div
+                                            key={match._id}
+                                            className="bracket-match-wrapper"
+                                            style={{ height: `${wrapperHeight}px` }}
+                                        >
+                                            <div className={`bracket-match ${isBye ? 'is-bye' : (match.played ? 'played' : '')}`}>
+                                                {isBye ? (
+                                                    <div className="bracket-team winner bye-layout">
+                                                        <div className="bye-content" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <span className="bracket-team-name" style={{ color: 'var(--primary)', fontWeight: 800 }}>{match.homeTeam.name}</span>
+                                                            <div className="badge-bye">BYE</div>
+                                                        </div>
                                                     </div>
-                                                    <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }}></div>
-                                                    <div className={`bracket-team ${match.played && match.awayScore > match.homeScore ? 'winner' : ''}`}>
-                                                        <span className="bracket-team-name">{match.awayTeam.name}</span>
-                                                        {match.played && <span className="bracket-team-score">{match.awayScore}</span>}
-                                                    </div>
-                                                </>
-                                            )}
+                                                ) : (
+                                                    <>
+                                                        <div className={`bracket-team ${match.played && match.homeScore > match.awayScore ? 'winner' : ''}`}>
+                                                            <span className="bracket-team-name">{match.homeTeam.name}</span>
+                                                            {match.played && <span className="bracket-team-score">{match.homeScore}</span>}
+                                                        </div>
+                                                        <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
+                                                        <div className={`bracket-team ${match.played && match.awayScore > match.homeScore ? 'winner' : ''}`}>
+                                                            <span className="bracket-team-name">{match.awayTeam.name}</span>
+                                                            {match.played && <span className="bracket-team-score">{match.awayScore}</span>}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ))}
                     </div>

@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, ArrowLeft } from 'lucide-react';
 
-const Navbar = ({ tournamentId }) => {
+const Navbar = ({ tournamentId, tournamentType }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const path = location.pathname;
@@ -46,7 +46,7 @@ const Navbar = ({ tournamentId }) => {
                             to={`/tournament/${tournamentId}/standings`}
                             className={`nav-link ${path.includes('standings') ? 'active' : ''}`}
                         >
-                            Standings
+                            {tournamentType === 'knockout' ? 'Brackets' : 'Standings'}
                         </Link>
                     </>
                 )}
