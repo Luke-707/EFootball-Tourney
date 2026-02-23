@@ -1,7 +1,7 @@
 const Tournament = require('../models/Tournament');
 const Team = require('../models/Team');
 const Match = require('../models/Match');
-const { generateRoundRobinFixtures, generateInitialKnockoutFixtures } = require('../utils/fixtures');
+const { generateRoundRobinFixtures, generateInitialKnockoutFixtures, generateNextRoundFixtures } = require('../utils/fixtures');
 
 exports.createTournament = async (req, res) => {
     try {
@@ -51,8 +51,9 @@ exports.generateFixtures = async (req, res) => {
         } else {
             // Knockout
             if (tournament.matches.length === 0) {
-                // Initial Round
-                fixtures = generateInitialKnockoutFixtures(teamIds, id);
+                // Initial Round — seeded bracket draw
+                const result = generateInitialKnockoutFixtures(teamIds, id, true);
+                fixtures = result.fixtures;
             } else {
                 // Generate Next Round from winners of current latest round
                 const latestRound = Math.max(...tournament.matches.map(m => m.round));
@@ -63,15 +64,16 @@ exports.generateFixtures = async (req, res) => {
                 }
 
                 if (latestMatches.length === 1) {
-                    return res.status(400).json({ error: 'Tournament already finished' });
+                    return res.status(400).json({ error: 'Tournament already finished! The champion has been crowned.' });
                 }
 
-                const winners = latestMatches.map(m => {
+                // Preserve bracket order: winners from sorted matches
+                const sortedLatest = latestMatches.sort((a, b) => a._id.toString().localeCompare(b._id.toString()));
+                const winners = sortedLatest.map(m => {
                     if (m.isBye) return m.homeTeam;
                     return m.homeScore > m.awayScore ? m.homeTeam : m.awayTeam;
                 });
-                fixtures = generateInitialKnockoutFixtures(winners, id, false); // false = DON'T SHUFFLE
-                fixtures.forEach(f => f.round = latestRound + 1);
+                fixtures = generateNextRoundFixtures(winners, id, latestRound + 1);
             }
         }
 

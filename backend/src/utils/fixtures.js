@@ -1,8 +1,5 @@
 /**
  * Generates round-robin fixtures for a list of teams
- * @param {Array} teams Array of team IDs
- * @param {string} tournamentId
- * @returns {Array} Array of match objects
  */
 function generateRoundRobinFixtures(teams, tournamentId) {
     let tempTeams = [...teams];
@@ -30,85 +27,166 @@ function generateRoundRobinFixtures(teams, tournamentId) {
                 });
             }
         }
-        // Rotate teams: keep first team, move others
         tempTeams.splice(1, 0, tempTeams.pop());
     }
 
     return fixtures;
 }
 
+/**
+ * Finds the next power of 2 >= N
+ */
+function nextPowerOf2(n) {
+    let p = 1;
+    while (p < n) p *= 2;
+    return p;
+}
+
+/**
+ * Generates a seeded bracket for N teams.
+ *
+ * Standard seeding: seeds 1..N are placed so that:
+ *   - #1 and #2 can only meet in the final
+ *   - #1 and #3/#4 can only meet in the semis
+ *   etc.
+ *
+ * Teams that receive byes are seeded from the top (best seeds advance automatically).
+ *
+ * Bracket size = next power of 2 >= N.
+ * numByes = bracketSize - N
+ *
+ * Returns { fixtures, bracketSize, numByes }
+ */
 function generateInitialKnockoutFixtures(teams, tournamentId, shouldShuffle = true) {
-    let sortedTeams = [...teams];
+    let orderedTeams = [...teams];
+
+    // Shuffle if it's the very first round draw
     if (shouldShuffle) {
-        sortedTeams = sortedTeams.sort(() => 0.5 - Math.random());
+        for (let i = orderedTeams.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [orderedTeams[i], orderedTeams[j]] = [orderedTeams[j], orderedTeams[i]];
+        }
     }
 
-    const N = sortedTeams.length;
-    if (N < 2) return [];
+    const N = orderedTeams.length;
+    if (N < 2) return { fixtures: [], bracketSize: 0, numByes: 0 };
 
-    // Find the largest power of 2 less than or equal to N
-    // This ensures that the NEXT round will have exactly targetPowerOf2 teams.
-    let targetPowerOf2 = 1;
-    while (targetPowerOf2 * 2 <= N) {
-        targetPowerOf2 *= 2;
-    }
+    const bracketSize = nextPowerOf2(N);
+    const numByes = bracketSize - N;
 
-    // If N is already a power of 2, everyone plays
-    if (targetPowerOf2 === N) {
-        const fixtures = [];
-        for (let i = 0; i < N; i += 2) {
+    // Build a standard seeded bracket slot array of length bracketSize.
+    // Slot positions follow the classic seeding pattern:
+    //   Seed 1 @ slot 0, Seed 2 @ slot (bracketSize-1), etc.
+    // We'll use the standard method: recursively split the bracket.
+    const slots = buildSeededSlots(bracketSize);
+
+    // Fill slots with teams (by seed order = shuffled order).
+    // The first `numByes` seeds get byes (best seeds).
+    // A slot value > N means it's a bye slot (no real team mapped there yet — we treat it as TBD).
+    const slotTeams = slots.map(seed => {
+        if (seed <= N) return orderedTeams[seed - 1];
+        return null; // bye placeholder
+    });
+
+    // Generate round 1 matches by pairing consecutive slots: [0,1], [2,3], ...
+    const fixtures = [];
+
+    for (let i = 0; i < bracketSize; i += 2) {
+        const home = slotTeams[i];
+        const away = slotTeams[i + 1];
+
+        if (home === null && away === null) {
+            // Shouldn't happen with proper power-of-2 sizing
+            continue;
+        }
+
+        if (home === null || away === null) {
+            // One side is a bye — the real team auto-advances
+            const realTeam = home || away;
             fixtures.push({
-                homeTeam: sortedTeams[i],
-                awayTeam: sortedTeams[i + 1],
+                homeTeam: realTeam,
+                awayTeam: realTeam,
+                homeScore: 1,
+                awayScore: 0,
                 tournamentId: tournamentId,
                 round: 1,
-                played: false
+                played: true,
+                isBye: true
+            });
+        } else {
+            // Normal match
+            fixtures.push({
+                homeTeam: home,
+                awayTeam: away,
+                tournamentId: tournamentId,
+                round: 1,
+                played: false,
+                isBye: false
             });
         }
-        return fixtures;
     }
 
-    // If N is not a power of 2 (e.g., 6)
-    // We want Round 2 to have targetPowerOf2 teams (e.g., 4)
-    // M = numMatches in Round 1. B = numByes in Round 1.
-    // M + B = targetPowerOf2
-    // 2M + B = N
-    // Subtracting: M = N - targetPowerOf2
-    const numMatches = N - targetPowerOf2;
-    const numByes = N - (2 * numMatches);
+    return { fixtures, bracketSize, numByes };
+}
 
+/**
+ * Builds the standard seeded bracket slot order for a bracket of given size.
+ * Returns an array of seed numbers in slot order (index = slot position).
+ *
+ * Convention: Seed 1 is at top, Seed 2 is at bottom of bracket.
+ * They can only meet in the final.
+ */
+function buildSeededSlots(size) {
+    let slots = [1, 2];
+    while (slots.length < size) {
+        const next = [];
+        const n = slots.length;
+        for (let i = 0; i < n; i++) {
+            // Each existing seed gets a "mirror" partner = (n*2 + 1 - seed)
+            next.push(slots[i]);
+            next.push(n * 2 + 1 - slots[i]);
+        }
+        slots = next;
+    }
+    return slots;
+}
+
+/**
+ * Generate next round fixtures from an array of winner team IDs.
+ * Winners are kept in their bracket order (no shuffling).
+ */
+function generateNextRoundFixtures(winners, tournamentId, nextRound) {
     const fixtures = [];
-    let idx = 0;
-
-    // 1. Create Play-in matches
-    for (let i = 0; i < numMatches; i++) {
-        fixtures.push({
-            homeTeam: sortedTeams[idx++],
-            awayTeam: sortedTeams[idx++],
-            tournamentId: tournamentId,
-            round: 1,
-            played: false
-        });
+    // Winners are in bracket order — just pair them sequentially
+    for (let i = 0; i < winners.length; i += 2) {
+        if (i + 1 < winners.length) {
+            fixtures.push({
+                homeTeam: winners[i],
+                awayTeam: winners[i + 1],
+                tournamentId: tournamentId,
+                round: nextRound,
+                played: false,
+                isBye: false
+            });
+        } else {
+            // Odd winner — shouldn't happen if seeding is correct, but safety net
+            fixtures.push({
+                homeTeam: winners[i],
+                awayTeam: winners[i],
+                homeScore: 1,
+                awayScore: 0,
+                tournamentId: tournamentId,
+                round: nextRound,
+                played: true,
+                isBye: true
+            });
+        }
     }
-
-    // 2. Assign Byes
-    // A bye is represented by a match where homeTeam === awayTeam and it's already "played"
-    // The frontend should handle this specifically.
-    for (let i = 0; i < numByes; i++) {
-        const team = sortedTeams[idx++];
-        fixtures.push({
-            homeTeam: team,
-            awayTeam: team,
-            homeScore: 1,
-            awayScore: 0,
-            tournamentId: tournamentId,
-            round: 1,
-            played: true,
-            isBye: true // Explicit flag for easier frontend handling
-        });
-    }
-
     return fixtures;
 }
 
-module.exports = { generateRoundRobinFixtures, generateInitialKnockoutFixtures };
+module.exports = {
+    generateRoundRobinFixtures,
+    generateInitialKnockoutFixtures,
+    generateNextRoundFixtures
+};
